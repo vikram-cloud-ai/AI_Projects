@@ -4,57 +4,76 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Repository Overview
 
-A collection of AI agent projects. Currently contains one project: an Azure infrastructure deployment agent built with LangGraph that converts natural language into Azure deployments with human-in-the-loop approval.
+A collection of AI agent projects focusing on Azure infrastructure automation and AI-powered tooling. Each project has its own detailed README with setup instructions, architecture details, and usage examples.
 
-## Project: azure_infra_deploy_agent
+## Projects Summary
 
-Located at `langgraph/azure_infra_deploy_agent/`.
+### 1. **azure_infra_deploy_agent**
+- **Path**: `langgraph/azure_infra_deploy_agent/`
+- **Type**: Jupyter notebook-based LangGraph workflow
+- **Purpose**: Original Azure deployment agent with hardcoded service support (Storage, Key Vault, App Service, Functions)
+- **Key Files**: `L7_AutomateCloudDeployment.ipynb`, `evals/test_parse_user_input_eval.py`
+- **Documentation**: [README.md](langgraph/azure_infra_deploy_agent/README.md)
 
-### Setup
+### 2. **azure_deployment_agent_with_azure_mcp**
+- **Path**: `langgraph/azure_deployment_agent_with_azure_mcp/`
+- **Type**: Modular Python package with CLI and Gradio web UI
+- **Purpose**: Enhanced deployment agent using Azure MCP for universal, dynamic Azure service support (works with ANY Azure service)
+- **Key Innovation**: MCP tools (`bicepschema`, `get_bestpractices`) replace hardcoded service logic
+- **Architecture**: Modular structure — `core/` (models, config, utils) + `workflow/` (nodes, edges, graph)
+- **Entry Points**: `main.py` (CLI), `gradio_app.py` (Web UI)
+- **Documentation**: [README.md](langgraph/azure_deployment_agent_with_azure_mcp/README.md), [GENERIC_ARCHITECTURE.md](langgraph/azure_deployment_agent_with_azure_mcp/GENERIC_ARCHITECTURE.md)
 
-```bash
-pip install langchain-openai langgraph pydantic python-dotenv gradio ipython
-```
 
-Create a `.env` file in the project directory:
-```
-AZURE_OPENAI_ENDPOINT=https://<your-endpoint>.openai.azure.com/
-AZURE_OPENAI_API_KEY=<your-api-key>
-```
+### 4. **foundry-hosted-agents**
+- **Path**: `foundry-hosted-agents/`
+- **Purpose**: Azure AI Foundry hosted agent integration
+- **Key Files**: `main.py`
 
-Prerequisites: Azure CLI installed and authenticated (`az login`), Bicep available (`az bicep version`).
 
-### Running
+## Key Architectural Patterns
 
-- **Jupyter:** Open `L7_AutomateCloudDeployment.ipynb` and run cells 1–17 sequentially.
-- **Gradio UI:** Run all notebook cells — the last cell launches the web interface via `demo.launch()`.
+### LangGraph Workflows
+Both Azure deployment agents use LangGraph for stateful, multi-step workflows:
+- **State Management**: `DeploymentAgentState` TypedDict carries data between nodes
+- **Human-in-the-Loop**: `interrupt()` pauses workflow for approval, resumed via thread ID + checkpointer
+- **Conditional Routing**: Edge functions determine next node based on build/validation results
+- **Checkpointing**: `InMemorySaver` enables workflow resumption after interrupts
 
-### Running Evaluations
-
-```bash
-cd langgraph/azure_infra_deploy_agent/evals
-python test_parse_user_input_eval.py
-```
-
-Three evaluation patterns are implemented (see `EVAL_GUIDE.md`):
-- **Outcome-Based** — direct comparison against expected outputs (fast)
-- **Rubric-Based** — LLM-as-judge multi-dimensional scoring (medium)
-- **Reflection** — iterative self-critique loop (slow)
-
-## Architecture
-
-The agent is a 7-node LangGraph workflow defined in the notebook:
-
+### Azure Deployment Pattern
 ```
 parse_user_input → generate_infra_code → build_bicep
-    → (conditional) refine_infra_code
-    → prevalidate_infra_code → human_review [interrupt] → deploy_infra_with_cli → verify_deployment
+    → (conditional) refine_infra_code (if build fails)
+    → human_review [interrupt] → deploy_infra_with_cli → verify_deployment
 ```
 
-**State:** `DeploymentAgentState` TypedDict threads through all nodes, carrying parsed parameters, generated Bicep code, build/validation/deployment results, and interrupt state.
+### Key Differences Between Azure Agents
+- **Original**: Hardcoded service support (5 resource types), notebook-based
+- **MCP-Enhanced**: Dynamic service discovery via MCP tools, modular package, works with ANY Azure service
 
-**Human-in-the-loop:** LangGraph's `interrupt()` pauses execution at `human_review`; the Gradio UI surfaces an approve/reject button. Resumption uses a thread ID stored in `InMemorySaver` checkpoints.
+## Common Prerequisites
+- Azure CLI (`az login` required)
+- Python 3.10+
+- Node.js (for MCP server integration in some projects)
+- Bicep CLI (`az bicep version`)
 
-**Azure execution:** Bicep operations run as subprocesses via the Azure CLI. Windows-aware path handling is used throughout.
+## Environment Variables
+Most projects require `.env` files with Azure OpenAI credentials:
+```
+AZURE_OPENAI_ENDPOINT=https://<endpoint>.openai.azure.com/
+AZURE_OPENAI_API_KEY=<key>
+AZURE_OPENAI_DEPLOYMENT=<deployment-name>
+```
 
-**Supported resource types:** Storage Account, Key Vault, App Service Plan, Application Insights, Function App.
+## Important Notes for Claude
+
+1. **Always refer to project-specific READMEs** for detailed setup, architecture, and usage instructions
+2. **Windows path handling**: All Azure CLI operations use cross-platform path handling
+3. **MCP integration**: Projects using MCP require Node.js runtime via `npx`
+4. **Evaluation patterns**: See `langgraph/azure_infra_deploy_agent/evals/EVAL_GUIDE.md` for three evaluation approaches (outcome-based, rubric-based, reflection)
+
+## Cross-Project Learnings
+
+- **Generic vs. Hardcoded**: The MCP-enhanced agent demonstrates how tool-driven architectures scale better than hardcoded service logic
+- **State Threading**: LangGraph's TypedDict state pattern works well for multi-step deployment workflows
+- **Human Approval**: Interrupt-based approval works identically in both CLI and web UI contexts when using checkpointers
