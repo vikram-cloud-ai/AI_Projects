@@ -1,0 +1,6 @@
+langchain-azure-ai[hosting]>=1.2.4
+langchain-mcp-adapters
+azure-identity
+dotenv
+azure-monitor-opentelemetry
+opentelemetry-sdk
