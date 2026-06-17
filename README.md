@@ -45,6 +45,8 @@ Azure AI Foundry hosted agent integration with LangChain and MCP.
 - **Node.js**: For MCP server integration (some projects)
 - **Virtual Environment**: `.venv` at repository root
 
+##
+
 ## 📖 Documentation
 
 - **[CLAUDE.md](CLAUDE.md)** — Guidance for AI assistants working with this repository
